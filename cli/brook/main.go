@@ -305,9 +305,8 @@ func main() {
 					Value: "223.5.5.5:53",
 				},
 				&cli.StringFlag{
-					Name:  "bypassList",
-					Usage: "https://, http:// or local file path",
-					Value: "https://txthinking.github.io/bypass/chinadomain.list",
+					Name:  "bypassDomainList",
+					Usage: "https://, http:// or local file path. Suffix match mode. Like: https://txthinking.github.io/bypass/chinadomain.txt",
 				},
 				&cli.IntFlag{
 					Name:  "tcpTimeout",
@@ -328,7 +327,7 @@ func main() {
 				if debug {
 					enableDebug()
 				}
-				s, err := brook.NewDNS(c.String("listen"), c.String("server"), c.String("password"), c.String("dns"), c.String("dnsForBypass"), c.String("bypassList"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+				s, err := brook.NewDNS(c.String("listen"), c.String("server"), c.String("password"), c.String("dns"), c.String("dnsForBypass"), c.String("bypassDomainList"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
 				if err != nil {
 					return err
 				}
@@ -348,7 +347,7 @@ func main() {
 				&cli.StringFlag{
 					Name:    "server",
 					Aliases: []string{"s"},
-					Usage:   "Brook server address, like: 1.2.3.4:1080",
+					Usage:   "Brook server address, like: 1.2.3.4:9999",
 				},
 				&cli.StringFlag{
 					Name:    "password",
@@ -359,6 +358,41 @@ func main() {
 					Name:    "listen",
 					Aliases: []string{"l"},
 					Usage:   "Listen address, DO NOT contain IP, just like: ':1080'",
+					Value:   ":1080",
+				},
+				&cli.StringFlag{
+					Name:  "dnsListen",
+					Usage: "Start a smart DNS server, like: ':53'. If 53 is occupied by another DNS server, change that DNS server to use another port",
+				},
+				&cli.StringFlag{
+					Name:  "dnsForDefault",
+					Usage: "DNS server for resolving domains NOT in list",
+					Value: "8.8.8.8:53",
+				},
+				&cli.StringFlag{
+					Name:  "dnsForBypass",
+					Usage: "DNS server for resolving domains in bypass list",
+					Value: "223.5.5.5:53",
+				},
+				&cli.StringFlag{
+					Name:  "bypassDomainList",
+					Usage: "https://, http:// or local file path. Suffix match mode. Like: https://txthinking.github.io/bypass/chinadomain.txt",
+				},
+				&cli.StringFlag{
+					Name:  "bypassCIDR4List",
+					Usage: "https://, http:// or local file path, like: https://txthinking.github.io/bypass/chinacidr4.txt",
+				},
+				&cli.StringFlag{
+					Name:  "bypassCIDR6List",
+					Usage: "https://, http:// or local file path, like: https://txthinking.github.io/bypass/chinacidr6.txt",
+				},
+				&cli.BoolFlag{
+					Name:  "enableIPv6",
+					Usage: "Your local and server must support IPv6",
+				},
+				&cli.BoolFlag{
+					Name:  "clean",
+					Usage: "Clean things the Brook did before if need. Example: $ brook tproxy --clean",
 				},
 				&cli.IntFlag{
 					Name:  "tcpTimeout",
@@ -370,55 +404,55 @@ func main() {
 					Value: 60,
 					Usage: "connection deadline time (s)",
 				},
-				&cli.BoolFlag{
-					Name:  "letBrookDoAllForMe",
-					Usage: "See more: https://github.com/txthinking/brook/wiki/How-to-run-transparent-proxy-on-Linux",
-				},
-				&cli.BoolFlag{
-					Name:  "cleanBrookDidForMe",
-					Usage: "See more: https://github.com/txthinking/brook/wiki/How-to-run-transparent-proxy-on-Linux",
-				},
 			},
 			Action: func(c *cli.Context) error {
-				if c.String("listen") == "" || c.String("server") == "" || c.String("password") == "" {
-					cli.ShowCommandHelp(c, "tproxy")
-					return nil
-				}
-				h, _, err := net.SplitHostPort(c.String("listen"))
-				if err != nil {
-					return err
-				}
-				if h != "" {
-					return errors.New("listen does not require IP, just pass it like ':port'")
-				}
-				if debug {
-					enableDebug()
-				}
-				s, err := brook.NewTproxy(c.String("listen"), c.String("server"), c.String("password"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
-				if err != nil {
-					return err
-				}
-				if c.Bool("cleanBrookDidForMe") {
+				if c.Bool("clean") {
+					s, err := brook.NewTproxy(":0", ":0", "", false, "", "", 0, 60)
+					if err != nil {
+						return err
+					}
 					if err := s.ClearAutoScripts(); err != nil {
 						return err
 					}
 					return nil
 				}
-				if c.Bool("letBrookDoAllForMe") {
-					if err := s.RunAutoScripts(); err != nil {
+				if c.String("listen") == "" || c.String("server") == "" || c.String("password") == "" {
+					cli.ShowCommandHelp(c, "tproxy")
+					return nil
+				}
+				if debug {
+					enableDebug()
+				}
+				s, err := brook.NewTproxy(c.String("listen"), c.String("server"), c.String("password"), c.Bool("enableIPv6"), c.String("bypassCIDR4List"), c.String("bypassCIDR6List"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+				if err != nil {
+					return err
+				}
+				var s1 *brook.DNS
+				if c.String("dnsListen") != "" {
+					s1, err = brook.NewDNS(c.String("dnsListen"), c.String("server"), c.String("password"), c.String("dnsForDefault"), c.String("dnsForBypass"), c.String("bypassDomainList"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+					if err != nil {
 						return err
 					}
+					go func() {
+						if err := s1.ListenAndServe(); err != nil {
+							log.Println(err)
+						}
+					}()
+				}
+				if err := s.RunAutoScripts(); err != nil {
+					return err
 				}
 				go func() {
 					sigs := make(chan os.Signal, 1)
 					signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 					<-sigs
-					if c.Bool("letBrookDoAllForMe") {
-						if err := s.ClearAutoScripts(); err != nil {
-							log.Println(err)
-						}
+					if err := s.ClearAutoScripts(); err != nil {
+						log.Println(err)
 					}
 					s.Shutdown()
+					if s1 != nil {
+						s1.Shutdown()
+					}
 				}()
 				return s.ListenAndServe()
 			},
@@ -942,9 +976,8 @@ func main() {
 					Value: "223.5.5.5:53",
 				},
 				&cli.StringFlag{
-					Name:  "bypassList",
-					Usage: "https://, http:// or local file path",
-					Value: "https://txthinking.github.io/bypass/chinadomain.list",
+					Name:  "bypassDomainList",
+					Usage: "https://, http:// or local file path. Suffix match mode. Like: https://txthinking.github.io/bypass/chinadomain.txt",
 				},
 				&cli.IntFlag{
 					Name:  "tcpTimeout",
@@ -965,7 +998,7 @@ func main() {
 				if debug {
 					enableDebug()
 				}
-				s, err := brook.NewHijackHTTPS(c.String("socks5"), c.String("socks5username"), c.String("socks5password"), c.String("listenIP"), c.String("dnsForBypass"), c.String("bypassList"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+				s, err := brook.NewHijackHTTPS(c.String("socks5"), c.String("socks5username"), c.String("socks5password"), c.String("listenIP"), c.String("dnsForBypass"), c.String("bypassDomainList"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
 				if err != nil {
 					return err
 				}
@@ -996,8 +1029,7 @@ func main() {
 				&cli.StringFlag{
 					Name:    "bypassDomainList",
 					Aliases: []string{"b"},
-					Value:   "https://txthinking.github.io/bypass/chinadomain.list",
-					Usage:   "domain list url, http(s):// or local file path",
+					Usage:   "domain list url, http(s):// or local file path. Suffix match mode. Like: https://txthinking.github.io/bypass/chinadomain.txt",
 				},
 				&cli.StringFlag{
 					Name:    "file",
@@ -1034,9 +1066,6 @@ func main() {
 				fmt.Println("")
 				fmt.Println("Blog:", "https://talks.txthinking.com")
 				fmt.Println("Youtube:", "https://www.youtube.com/channel/UC5j8-I5Y4lWo4KTa4_0Kx5A")
-				fmt.Println("")
-				fmt.Println("Nami:", "https://github.com/txthinking/nami")
-				fmt.Println("Joker:", "https://github.com/txthinking/joker")
 				fmt.Println("")
 				return nil
 			},
