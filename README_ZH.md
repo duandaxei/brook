@@ -15,11 +15,18 @@
 
 ---
 
-**v20210214**
+**v20210401**
 
-- 只是更新了客户端, 优化link, QR, 分享, 导入
-- [官方文档](https://txthinking.github.io/brook/#/zh-cn/)
-- [官方论坛](https://github.com/txthinking/brook/discussions)
+-   [GUI] Block list(广告过滤)
+-   [Bypass & Block 规则](https://github.com/txthinking/bypass)
+-   [GUI] DNS 转发
+-   [GUI] OpenWrt 图形客户端
+-   [GUI] Fake DNS
+-   [CLI] \$ brook tproxy
+-   [一键脚本](https://brook-community.github.io/script/)
+-   [官方文档](https://txthinking.github.io/brook/#/zh-cn/)
+-   [官方论坛(问问题的地方)](https://github.com/txthinking/brook/discussions)
+-   go mod
 
 ---
 
@@ -36,26 +43,36 @@ Brook 是一个跨平台的强加密无特征的代理软件. 偏爱 KISS 哲学
 从 [releases](https://github.com/txthinking/brook/releases) 页面下载
 
 ```
-# 举例, linux amd64, v20210214
+# 举例, linux amd64, v20210401
 
-curl -L https://github.com/txthinking/brook/releases/download/v20210214/brook_linux_amd64 -o /usr/bin/brook
+curl -L https://github.com/txthinking/brook/releases/download/v20210401/brook_linux_amd64 -o /usr/bin/brook
 chmod +x /usr/bin/brook
 ```
 
-通过 [nami](https://github.com/txthinking/nami) 安装
+通过 [nami](https://github.com/txthinking/nami) 安装 🔥
 
 ```
 nami install github.com/txthinking/brook
 ```
 
+通过 brew 安装
+
+```
+brew install brook
+```
+
 ### 安装 GUI (图形客户端)
 
-从 [releases](https://github.com/txthinking/brook/releases) 页面下载: [macOS](https://github.com/txthinking/brook/releases/download/v20210214/Brook.dmg), [Windows](https://github.com/txthinking/brook/releases/download/v20210214/Brook.exe), [Android](https://github.com/txthinking/brook/releases/download/v20210214/Brook.apk), [iOS](https://apps.apple.com/us/app/brook-a-cross-platform-proxy/id1216002642)
+从 [releases](https://github.com/txthinking/brook/releases) 页面下载: [macOS](https://github.com/txthinking/brook/releases/download/v20210401/Brook.dmg), [Windows](https://github.com/txthinking/brook/releases/download/v20210401/Brook.exe), [Android](https://github.com/txthinking/brook/releases/download/v20210401/Brook.apk), [iOS](https://apps.apple.com/us/app/brook-a-cross-platform-proxy/id1216002642)
 
 通过 brew 安装
 
 ```
 brew install --cask brook
+```
+
+```
+brew install --cask brooklite
 ```
 
 ## 使用
@@ -70,7 +87,7 @@ USAGE:
    brook [global options] command [command options] [arguments...]
 
 VERSION:
-   20210214
+   20210401
 
 AUTHOR:
    Cloud <cloud@txthinking.com>
