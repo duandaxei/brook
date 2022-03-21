@@ -1,5 +1,7 @@
 # Brook
 
+<!--G-R3M673HK5V-->
+
 [🇨🇳 中文](README_ZH.md)
 
 [![Build Status](https://travis-ci.org/txthinking/brook.svg?branch=master)](https://travis-ci.org/txthinking/brook)
@@ -14,13 +16,17 @@ Brook is a cross-platform strong encryption and not detectable proxy. Keep it si
 
 [🗣 Subscribe Announcement](https://t.me/txthinking_news)
 
+<!--TOC-->
+
+## Install
+
 ### Install brook command
 
 > [nami](https://github.com/txthinking/nami) can automatically download the command corresponding to your system. If on Windows, run in [Git Bash](https://gitforwindows.org)<br/>
 > or<br/>
 > If your system is not Linux, MacOS, Windows, or don't want nami, you can download it directly on the [releases](https://github.com/txthinking/brook/releases) page<br/>
 > or<br/>
-> the fucking one-click script: `bash <(curl https://bash.ooo/brook.sh)`<br/>
+> the script but only some parameters are supported: `bash <(curl https://bash.ooo/brook.sh)`<br/>
 > or<br/>
 > Archlinux: `pacman -S brook`<br/>
 > or<br/>
@@ -49,14 +55,14 @@ nami install brook
 
 > Windows requires that the latest version of Edge(chromium-based) has been installed<br/>
 
-这里有[brook 客户端工作原理](https://talks.txthinking.com/articles/brook.article)
+这里有 [brook GUI 客户端工作原理](https://talks.txthinking.com/articles/brook.article)
 
-### brook `subcommand` and `command line arguments`
+## brook `subcommand` and `command line arguments`
 
 -   all `subcoommand`: `brook --help`
 -   command line arguments of `subommand`: `brook xxx --help`
 
-### brook rule format
+## brook rule format
 
 There are three types of rule files
 
@@ -72,7 +78,7 @@ Rules file can be used for
 -   OpenWrt: bypass, block, domain, ip
 -   Brook GUI: bypass, block, domain, ip
 
-### Examples
+## Examples
 
 List some examples of common scene commands, pay attention to replace the parameters such as IP, port, password, domain name, certificate path, etc. in the example by yourself
 
@@ -80,16 +86,22 @@ List some examples of common scene commands, pay attention to replace the parame
 
 ```
 SRC --TCP--> brook client/relayoverbrook/dns/tproxy/GUI Client --TCP(Brook Protocol)--> brook server --TCP--> DST
-SRC --UDP--> brook client/relayoverbrook/dns/tproxy/GUI Client --UDP(Brook Protocol)--> brook server --UDP--> DST
+SRC --UDP--> brook client/relayoverbrook/dns/tproxy/GUI Client --UDP/TCP(Brook Protocol)--> brook server --UDP--> DST
 ```
-
-> Make sure you have no problem with your local UDP network to your server. If there is a problem, use brook wsserver instead
 
 ```
 brook server --listen :9999 --password hello
 ```
 
-Get brook link
+Get brook link with `--udpovertcp`
+
+```
+brook link --server 1.2.3.4:9999 --password hello --udpovertcp --name 'my brook server'
+```
+
+or get brook link with udp over udp
+
+> Make sure you have no problem with your local UDP network to your server
 
 ```
 brook link --server 1.2.3.4:9999 --password hello --name 'my brook server'
@@ -178,11 +190,11 @@ or get brook link with `--ca`
 brook link --server wss://domain.com:443 --password hello --name 'my brook wssserver' --address 1.2.3.4:443 --ca /root/ca.pem
 ```
 
-### --withoutBrookProtocol
+### withoutBrookProtocol
 
 Better performance, but data is not strongly encrypted using Brook protocol. So please use certificate encryption, and it is not recommended to use --withoutBrookProtocol and --insecure together
 
-### --withoutBrookProtocol automatically certificate
+### withoutBrookProtocol automatically certificate
 
 > Make sure your domain has been resolved to your server IP successfully. Automatic certificate issuance requires the use of port 80
 
@@ -196,7 +208,7 @@ Get brook link
 brook link --server wss://domain.com:443 --password hello --withoutBrookProtocol
 ```
 
-### --withoutBrookProtocol Use a certificate issued by an existing trust authority
+### withoutBrookProtocol Use a certificate issued by an existing trust authority
 
 > Make sure your domain has been resolved to your server IP successfully
 
@@ -210,7 +222,7 @@ Get brook link
 brook link --server wss://domain.com:443 --password hello --name 'my brook wssserver' --withoutBrookProtocol
 ```
 
-### --withoutBrookProtocol issue untrusted certificates yourself, any domain
+### withoutBrookProtocol issue untrusted certificates yourself, any domain
 
 Install [mad](https://github.com/txthinking/mad)
 
@@ -242,13 +254,13 @@ Get brook link
 brook link --server wss://domain.com:443 --password hello --withoutBrookProtocol --address 1.2.3.4:443 --ca /root/ca.pem
 ```
 
-### brook server/wsserver/wssserver forward to another socks5 server on server-side
+### brook server wsserver wssserver forward to another socks5 server on server-side
 
 -   --toSocks5
 -   --toSocks5Username
 -   --toSocks5Password
 
-### brook server/wsserver/wssserver block domain and ip on server-side
+### brook server wsserver wssserver block domain and ip on server-side
 
 -   --blockDomainList
 -   --blockCIDR4List
@@ -284,7 +296,7 @@ Get brook link
 brook link --server socks5://1.2.3.4:1080 --username hello --password world
 ```
 
-### brook relayoverbrook can relay a local address to a remote address over brook, both TCP and UDP, it works with brook server/wsserver/wssserver.
+### brook relayoverbrook can relay a local address to a remote address over brook, both TCP and UDP, it works with brook server wsserver wssserver.
 
 ```
 SRC --TCP--> brook relayoverbrook --TCP(Brook Protocol) --> brook server/wsserver/wssserver --TCP--> DST
@@ -295,7 +307,7 @@ SRC --UDP--> brook relayoverbrook --TCP/UDP(Brook Protocol) --> brook server/wss
 brook relayoverbrook ... --from 127.0.0.1:5353 --to 8.8.8.8:53
 ```
 
-### brook dns can create a encrypted DNS server, both TCP and UDP, it works with brook server/wsserver/wssserver.
+### brook dns can create a encrypted DNS server, both TCP and UDP, it works with brook server wsserver wssserver.
 
 ```
 SRC --TCP--> brook dns --TCP(Brook Protocol) --> brook server/wsserver/wssserver --TCP--> DST
@@ -419,7 +431,7 @@ brook pac --file proxy.pac --proxy 'SOCKS5 127.0.0.1:1080; SOCKS 127.0.0.1:1080;
 
 Symmetric
 
-### Run command as daemon via joker
+## Run command as daemon via joker
 
 Install [joker](https://github.com/txthinking/joker)
 
@@ -457,7 +469,7 @@ Stop a running command via joker
 joker stop <ID>
 ```
 
-### Auto start at boot viajinbe
+## Auto start at boot via jinbe
 
 Install [jinbe](https://github.com/txthinking/jinbe)
 
@@ -483,6 +495,8 @@ Remove a added command via jinbe
 jinbe remove <ID>
 ```
 
+## Protocol
+
 ### brook server protocol
 
 [brook-server-protocol.md](protocol/brook-server-protocol.md)
@@ -495,7 +509,7 @@ jinbe remove <ID>
 
 [brook-wssserver-protocol.md](protocol/brook-wssserver-protocol.md)
 
-### --withoutBrookProtocol protocol
+### withoutBrookProtocol protocol
 
 [withoutbrookprotocol-protocol.md](protocol/withoutbrookprotocol-protocol.md)
 
@@ -503,7 +517,7 @@ jinbe remove <ID>
 
 [brook-link-protocol.md](protocol/brook-link-protocol.md)
 
-### 其他资源
+## Resources
 
 -   Brook GUI 工作原理: https://talks.txthinking.com/articles/brook.article
 -   brook wsserver and Cloudflare CDN: https://www.youtube.com/watch?v=KFzS55bUk6A

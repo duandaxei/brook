@@ -1,4 +1,6 @@
-### Brook Link
+# brook link protocol
+
+<!--G-R3M673HK5V-->
 
 ```
 brook://KIND?QUERY
@@ -13,6 +15,7 @@ brook://KIND?QUERY
 -   **QUERY**:
     -   `server`: brook server, such as `1.2.3.4:9999`
     -   `password`: password
+    -   `udpovertcp`: `true` [Optional]
     -   `name`: such as `my server` [Optional]
     -   Any other custom key
 
