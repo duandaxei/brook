@@ -1,87 +1,3 @@
-# Brook
-
-<!--THEME:github-->
-<!--G-R3M673HK5V-->
-
-[🇬🇧 English](README.md)
-
-[![Build Status](https://travis-ci.org/txthinking/brook.svg?branch=master)](https://travis-ci.org/txthinking/brook)
-[![开源协议: GPL v3](https://img.shields.io/badge/%E5%BC%80%E6%BA%90%E5%8D%8F%E8%AE%AE-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
-
-[🤝 Telegram](https://t.me/brookgroup)
-[🩸 YouTube](https://www.youtube.com/txthinking)
-[❤️ Sponsor](https://github.com/sponsors/txthinking)
-
-一个为开发者设计的跨平台网络工具.
-
-[🗣 订阅公告](https://t.me/txthinking_news)
-
-<!--TOC-->
-
-## 安装
-
-### 安装 brook 命令
-
-> [nami](https://github.com/txthinking/nami) 她会自动帮你下载适用你系统的最新版 brook 命令文件. 如果你的系统是 Windows, 你需要在 [Git Bash](https://gitforwindows.org) 里面运行<br/>
-> 或<br/>
-> 如果你的系统不是 Linux, MacOS, Windows, 或不想用 nami, 你可以去 [releases](https://github.com/txthinking/brook/releases) 自己下载命令文件<br/>
-> 或<br/>
-> 一键脚本: `bash <(curl https://bash.ooo/brook.sh)`<br/>
-> 或<br/>
-> 使用网上其他同学写的脚本<br/>
-> 或<br/>
-> Archlinux: `pacman -S brook` (可能不是最新版本)<br/>
-> 或<br/>
-> brew: `brew install brook` (可能不是最新版本)<br/>
-
-安装 nami
-
-```
-bash <(curl https://bash.ooo/nami.sh)
-```
-
-使用 nami 安装 brook
-
-```
-nami install brook
-```
-
-### 安装 Brook 图形客户端
-
--   [iOS & M1 Mac](https://apps.apple.com/us/app/brook-a-cross-platform-proxy/id1216002642)
-    -   iOS & M1 Mac: 请使用非中国大陆 Apple ID 下载
--   [Android: Brook.apk](https://github.com/txthinking/brook/releases/latest/download/Brook.apk)
--   [Google Play](https://play.google.com/store/apps/details?id=com.soulsinger)
--   [macOS](https://github.com/txthinking/brook/releases/latest/download/Brook.dmg)
--   [Windows](https://github.com/txthinking/brook/releases/latest/download/Brook.exe)
-    -   Windows: 需要你已经安装了最新版(基于 chromium 的那款)的 Edge 浏览器
-    -   Windows 安全中心 病毒和威胁防护: 设置 -> 更新和安全 -> Windows 安全中心 -> 病毒和威胁防护 -> “病毒和威胁防护” 设置 -> 管理设置 -> 排除项 -> 添加或删除排除项 -> 添加排除项 文件 -> 选择 Brook.exe
--   [OpenWrt](#官网原版-openwrt-图形客户端)
--   Linux: brook cli + [Socks5 Configurator](https://chrome.google.com/webstore/detail/socks5-configurator/hnpgnjkeaobghpjjhaiemlahikgmnghb) 或 [tun2brook](https://github.com/txthinking/tun2brook)
-
-[Brook GUI 工作原理](https://www.txthinking.com/talks/articles/brook.article)
-
-## brook `子命令` 和 `命令参数`
-
--   查看所有的`子命令`: `brook --help`
--   查看某个`子命令`的参数: `brook xxx --help`
-
-## brook 规则格式
-
-有三种规则文件
-
--   域名列表: 一行一个域名，后缀匹配模式。可以是本地的文件，也可以是 HTTPS URL
--   CIDR v4 列表: 一行一个 CIDR。可以是本地的文件，也可以是 HTTPS URL
--   CIDR v6 列表: 一行一个 CIDR。可以是本地的文件，也可以是 HTTPS URL
-
-规则文件可用于
-
--   服务端屏蔽域名和 IP
--   brook dns 分流，屏蔽域名
--   brook tproxy 分流，屏蔽域名
--   OpenWrt 分流，屏蔽域名
--   brook 图形客户端分流，屏蔽域名
-
 ## 例子
 
 下面列举一些常用场景命令的例子, 注意自己替换示例中的 IP，端口，密码，域名，证书路径等参数
@@ -94,8 +10,8 @@ brook server --listen :9999 --password hello
 
 然后
 
-- server: `1.2.3.4:9999`
-- password: `hello`
+-   server: `1.2.3.4:9999`
+-   password: `hello`
 
 或 获取 brook link
 
@@ -117,8 +33,8 @@ brook wsserver --listen :9999 --password hello
 
 然后
 
-- server: `ws://1.2.3.4:9999`
-- password: `hello`
+-   server: `ws://1.2.3.4:9999`
+-   password: `hello`
 
 或 获取 brook link
 
@@ -142,8 +58,8 @@ brook wssserver --domainaddress domain.com:443 --password hello
 
 然后
 
-- server: `wss://domain.com:443`
-- password: `hello`
+-   server: `wss://domain.com:443`
+-   password: `hello`
 
 或 获取 brook link
 
@@ -161,8 +77,8 @@ brook wssserver --domainaddress domain.com:443 --password hello --cert /root/cer
 
 然后
 
-- server: `wss://domain.com:443`
-- password: `hello`
+-   server: `wss://domain.com:443`
+-   password: `hello`
 
 或 获取 brook link
 
@@ -293,7 +209,7 @@ brook socks5 --listen :1080 --socks5ServerIP 1.2.3.4
 
 然后
 
-- server: `1.2.3.4:1080`
+-   server: `1.2.3.4:1080`
 
 或 获取 brook link
 
@@ -309,9 +225,9 @@ brook socks5 --listen :1080 --socks5ServerIP 1.2.3.4 --username hello --password
 
 然后
 
-- server: `1.2.3.4:1080`
-- username: `hello`
-- password: `world`
+-   server: `1.2.3.4:1080`
+-   username: `hello`
+-   password: `world`
 
 或 获取 brook link
 
@@ -325,10 +241,10 @@ brook link --server socks5://1.2.3.4:1080 --username hello --password world
 brook relayoverbrook ... --from 127.0.0.1:5353 --to 8.8.8.8:53
 ```
 
-### brook dns 用来创建一个加密 DNS Server, TCP and UDP, 它与 brook server wsserver wssserver 一起工作
+### brook dnsserveroverbrook 用来创建一个加密 DNS Server, TCP and UDP, 它与 brook server wsserver wssserver 一起工作
 
 ```
-brook dns ... --listen 127.0.0.1:53
+brook dnsserveroverbrook ... --listen 127.0.0.1:53
 ```
 
 规则
@@ -431,129 +347,3 @@ brook pac --listen 127.0.0.1:8080 --proxy 'SOCKS5 127.0.0.1:1080; SOCKS 127.0.0.
 ```
 brook pac --file proxy.pac --proxy 'SOCKS5 127.0.0.1:1080; SOCKS 127.0.0.1:1080; DIRECT' --bypassDomainList ...
 ```
-
-### IPv6
-
-| Command/Client       | Remark | Support IPv4 | Support IPv6 |
-| -------------------- | ------ | ------------ | ------------ |
-| brook server         | CLI    | Yes          | Yes          |
-| brook client         | CLI    | Yes          | Yes          |
-| brook wsserver       | CLI    | Yes          | Yes          |
-| brook wsclient       | CLI    | Yes          | Yes          |
-| brook wssserver      | CLI    | Yes          | Yes          |
-| brook wssclient      | CLI    | Yes          | Yes          |
-| brook relayoverbrook | CLI    | Yes          | Yes          |
-| brook dns            | CLI    | Yes          | Yes          |
-| brook tproxy         | CLI    | Yes          | Yes          |
-| brook connect        | CLI    | Yes          | Yes          |
-| brook relay          | CLI    | Yes          | Yes          |
-| brook socks5         | CLI    | Yes          | Yes          |
-| brook socks5tohttp   | CLI    | Yes          | Yes          |
-| brook hijackhttps    | CLI    | Yes          | Yes          |
-| macOS Client         | GUI    | Yes          | Yes          |
-| Windows Client       | GUI    | Yes          | Yes/?        |
-| iOS Client           | GUI    | Yes          | Yes          |
-| Android Client       | GUI    | Yes          | Yes          |
-| OpenWrt Client       | GUI    | Yes          | Yes          |
-
-### NAT Type
-
-Symmetric
-
-## 使用 joker 运行守护进程
-
-使用 nami 安装 [joker](https://github.com/txthinking/joker)
-
-```
-nami install joker
-```
-
-使用 joker 运行 brook 守护进程, 只需要在原来命令前面加上 joker
-
-```
-joker brook ...
-```
-
-查看最后一个命令的 ID
-
-```
-joker last
-```
-
-查看某个命令的输出和错误
-
-```
-joker log <ID>
-```
-
-查看运行的命令列表
-
-```
-joker list
-```
-
-停止某个命令
-
-```
-joker stop <ID>
-```
-
-## 使用 jinbe 添加开机自启动命令
-
-使用 nami 安装 [jinbe](https://github.com/txthinking/jinbe)
-
-```
-nami install jinbe
-```
-
-使用 jinbe 添加开机自启动命令，只需要在原来命令前面加上 jinbe
-
-```
-jinbe joker brook ...
-```
-
-查看添加的开机命令
-
-```
-jinbe list
-```
-
-移除某个开机命令
-
-```
-jinbe remove <ID>
-```
-
-## Protocol
-
-### brook server protocol
-
-[brook-server-protocol.md](protocol/brook-server-protocol.md)
-
-### brook wsserver protocol
-
-[brook-wsserver-protocol.md](protocol/brook-wsserver-protocol.md)
-
-### brook wssserver protocol
-
-[brook-wssserver-protocol.md](protocol/brook-wssserver-protocol.md)
-
-### withoutBrookProtocol protocol
-
-[withoutbrookprotocol-protocol.md](protocol/withoutbrookprotocol-protocol.md)
-
-### brook link protocol
-
-[brook-link-protocol.md](protocol/brook-link-protocol.md)
-
-## 其他资源
-
--   Brook 工作原理: https://www.txthinking.com/talks/articles/brook.article
--   博客: https://www.txthinking.com/talks/
--   YouTube 频道: https://www.youtube.com/txthinking
--   论坛: https://github.com/txthinking/brook/discussions
--   Telegram 群: https://t.me/brookgroup
--   公告: https://t.me/txthinking_news
--   Chrome Extension: [Socks5 Configurator](https://chrome.google.com/webstore/detail/hnpgnjkeaobghpjjhaiemlahikgmnghb)
--   规则列表事例: https://github.com/txthinking/bypass
--   https://http3.ooo
