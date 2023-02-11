@@ -15,21 +15,14 @@
 package brook
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
-	"io"
-	"log"
 	"net"
 	"time"
 
 	"github.com/txthinking/socks5"
 	"github.com/txthinking/x"
-	"golang.org/x/crypto/hkdf"
 )
 
-type PacketServer struct {
+type SimplePacketServer struct {
 	Client   net.Conn
 	Password []byte
 	RB       []byte
@@ -40,16 +33,16 @@ type PacketServer struct {
 	dstl     int
 }
 
-func NewPacketServer(password []byte, src string, client net.Conn, timeout int, dst []byte) (Exchanger, error) {
-	s := &PacketServer{Password: password, Client: client, Timeout: timeout, src: src}
+func NewSimplePacketServer(password []byte, src string, client net.Conn, timeout int, dst []byte) (Exchanger, error) {
+	s := &SimplePacketServer{Password: password, Client: client, Timeout: timeout, src: src}
 	s.RB = x.BP65507.Get().([]byte)
 	s.WB = x.BP65507.Get().([]byte)
-	s.dstl = copy(s.WB[12:12+len(dst)], dst)
+	s.dstl = copy(s.WB[:len(dst)], dst)
 	s.dst = socks5.ToAddress(dst[0], dst[1:s.dstl-2], dst[s.dstl-2:])
 	return ServerGate(s)
 }
 
-func (s *PacketServer) Exchange(remote net.Conn) error {
+func (s *SimplePacketServer) Exchange(remote net.Conn) error {
 	go func() {
 		for {
 			if s.Timeout != 0 {
@@ -57,34 +50,11 @@ func (s *PacketServer) Exchange(remote net.Conn) error {
 					return
 				}
 			}
-			l, err := remote.Read(s.WB[12+s.dstl : 65507-16])
+			l, err := remote.Read(s.WB[s.dstl:])
 			if err != nil {
 				return
 			}
-			if _, err := io.ReadFull(rand.Reader, s.WB[:12]); err != nil {
-				log.Println(err)
-				return
-			}
-			sk := x.BP32.Get().([]byte)
-			if _, err := io.ReadFull(hkdf.New(sha256.New, s.Password, s.WB[:12], []byte{0x62, 0x72, 0x6f, 0x6f, 0x6b}), sk); err != nil {
-				x.BP32.Put(sk)
-				log.Println(err)
-				return
-			}
-			sb, err := aes.NewCipher(sk)
-			if err != nil {
-				x.BP32.Put(sk)
-				log.Println(err)
-				return
-			}
-			x.BP32.Put(sk)
-			sa, err := cipher.NewGCM(sb)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-			sa.Seal(s.WB[:12], s.WB[:12], s.WB[12:12+s.dstl+l], nil)
-			_, err = s.Client.Write(s.WB[:12+s.dstl+l+16])
+			_, err = s.Client.Write(s.WB[:s.dstl+l])
 			if err != nil {
 				return
 			}
@@ -107,19 +77,19 @@ func (s *PacketServer) Exchange(remote net.Conn) error {
 	return nil
 }
 
-func (s *PacketServer) Clean() {
+func (s *SimplePacketServer) Clean() {
 	x.BP65507.Put(s.RB)
 	x.BP65507.Put(s.WB)
 }
 
-func (s *PacketServer) Network() string {
+func (s *SimplePacketServer) Network() string {
 	return "udp"
 }
 
-func (s *PacketServer) Src() string {
+func (s *SimplePacketServer) Src() string {
 	return s.src
 }
 
-func (s *PacketServer) Dst() string {
+func (s *SimplePacketServer) Dst() string {
 	return s.dst
 }

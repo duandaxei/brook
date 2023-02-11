@@ -15,49 +15,76 @@
 package brook
 
 import (
+	"crypto/tls"
+	"errors"
 	"log"
 	"net"
+	"net/url"
 
 	"github.com/txthinking/brook/limits"
+	crypto1 "github.com/txthinking/crypto"
 	"github.com/txthinking/socks5"
 )
 
-type Client struct {
+type QUICClient struct {
 	Server            *socks5.Server
+	ServerHost        string
 	ServerAddress     string
+	TLSConfig         *tls.Config
 	Password          []byte
 	TCPTimeout        int
 	UDPTimeout        int
-	UDPOverTCP        bool
+	WithoutBrook      bool
 	PacketConnFactory *PacketConnFactory
 }
 
-func NewClient(addr, ip, server, password string, tcpTimeout, udpTimeout int) (*Client, error) {
+func NewQUICClient(addr, ip, server, password string, tcpTimeout, udpTimeout int, withoutbrook bool) (*QUICClient, error) {
 	s5, err := socks5.NewClassicServer(addr, ip, "", "", tcpTimeout, udpTimeout)
+	if err != nil {
+		return nil, err
+	}
+	u, err := url.Parse(server)
 	if err != nil {
 		return nil, err
 	}
 	if err := limits.Raise(); err != nil {
 		log.Println("Try to raise system limits, got", err)
 	}
-	x := &Client{
-		ServerAddress:     server,
+	p := []byte(password)
+	if withoutbrook {
+		p, err = crypto1.SHA256Bytes([]byte(password))
+		if err != nil {
+			return nil, err
+		}
+	}
+	x := &QUICClient{
+		ServerHost:        u.Host,
 		Server:            s5,
-		Password:          []byte(password),
+		Password:          p,
 		TCPTimeout:        tcpTimeout,
 		UDPTimeout:        udpTimeout,
+		WithoutBrook:      withoutbrook,
 		PacketConnFactory: NewPacketConnFactory(),
 	}
+	h, _, err := net.SplitHostPort(u.Host)
+	if err != nil {
+		return nil, err
+	}
+	x.TLSConfig = &tls.Config{ServerName: h, NextProtos: []string{"h3"}}
 	return x, nil
 }
 
-func (x *Client) ListenAndServe() error {
+func (x *QUICClient) ListenAndServe() error {
 	return x.Server.ListenAndServe(x)
 }
 
-func (x *Client) TCPHandle(s *socks5.Server, c *net.TCPConn, r *socks5.Request) error {
+func (x *QUICClient) TCPHandle(s *socks5.Server, c *net.TCPConn, r *socks5.Request) error {
 	if r.Cmd == socks5.CmdConnect {
-		rc, err := DialTCP("tcp", "", x.ServerAddress)
+		sa := x.ServerAddress
+		if sa == "" {
+			sa = x.ServerHost
+		}
+		rc, err := QUICDialTCP("", "", sa, x.ServerHost, x.TLSConfig, x.TCPTimeout)
 		if err != nil {
 			return ErrorReply(r, c, err)
 		}
@@ -66,7 +93,13 @@ func (x *Client) TCPHandle(s *socks5.Server, c *net.TCPConn, r *socks5.Request) 
 		dst = append(dst, r.Atyp)
 		dst = append(dst, r.DstAddr...)
 		dst = append(dst, r.DstPort...)
-		sc, err := NewStreamClient("tcp", x.Password, c.RemoteAddr().String(), rc, x.TCPTimeout, dst)
+		var sc Exchanger
+		if !x.WithoutBrook {
+			sc, err = NewStreamClient("tcp", x.Password, c.RemoteAddr().String(), rc, x.TCPTimeout, dst)
+		}
+		if x.WithoutBrook {
+			sc, err = NewSimpleStreamClient("tcp", x.Password, c.RemoteAddr().String(), rc, x.TCPTimeout, dst)
+		}
 		if err != nil {
 			return ErrorReply(r, c, err)
 		}
@@ -94,13 +127,10 @@ func (x *Client) TCPHandle(s *socks5.Server, c *net.TCPConn, r *socks5.Request) 
 	return socks5.ErrUnsupportCmd
 }
 
-type UDPExchange struct {
-	Conn net.Conn
-	Any  interface{}
-	Dst  []byte
-}
-
-func (x *Client) UDPHandle(s *socks5.Server, addr *net.UDPAddr, d *socks5.Datagram) error {
+func (x *QUICClient) UDPHandle(s *socks5.Server, addr *net.UDPAddr, d *socks5.Datagram) error {
+	if 12+4+1+len(d.DstAddr)+2+len(d.Data)+16 > 1197 {
+		return errors.New("quic max datagram size is 1197")
+	}
 	dstb := append(append([]byte{d.Atyp}, d.DstAddr...), d.DstPort...)
 	conn, err := x.PacketConnFactory.Handle(addr, dstb, d.Data, func(b []byte) (int, error) {
 		d.Data = b
@@ -113,28 +143,22 @@ func (x *Client) UDPHandle(s *socks5.Server, addr *net.UDPAddr, d *socks5.Datagr
 		return nil
 	}
 	defer conn.Close()
-	if x.UDPOverTCP {
-		rc, err := NATDial("tcp", addr.String(), d.Address(), x.ServerAddress)
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-		sc, err := NewStreamClient("udp", x.Password, addr.String(), rc, x.UDPTimeout, dstb)
-		if err != nil {
-			return err
-		}
-		defer sc.Clean()
-		if err := sc.Exchange(conn); err != nil {
-			return nil
-		}
-		return nil
+	sa := x.ServerAddress
+	if sa == "" {
+		sa = x.ServerHost
 	}
-	rc, err := NATDial("udp", addr.String(), d.Address(), x.ServerAddress)
+	rc, err := QUICDialUDP(addr.String(), d.Address(), sa, x.ServerHost, x.TLSConfig, x.UDPTimeout)
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
-	sc, err := NewPacketClient(x.Password, addr.String(), rc, x.UDPTimeout, dstb)
+	var sc Exchanger
+	if !x.WithoutBrook {
+		sc, err = NewPacketClient(x.Password, addr.String(), rc, x.UDPTimeout, dstb)
+	}
+	if x.WithoutBrook {
+		sc, err = NewSimplePacketClient(x.Password, addr.String(), rc, x.UDPTimeout, dstb)
+	}
 	if err != nil {
 		return err
 	}
@@ -145,6 +169,6 @@ func (x *Client) UDPHandle(s *socks5.Server, addr *net.UDPAddr, d *socks5.Datagr
 	return nil
 }
 
-func (x *Client) Shutdown() error {
+func (x *QUICClient) Shutdown() error {
 	return x.Server.Shutdown()
 }
