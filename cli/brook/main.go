@@ -51,7 +51,7 @@ func main() {
 	g := runnergroup.New()
 	app := cli.NewApp()
 	app.Name = "Brook"
-	app.Version = "20230122.Beta.20230214"
+	app.Version = "20230218"
 	app.Usage = "A cross-platform network tool designed for developers"
 	app.Authors = []*cli.Author{
 		{
@@ -1217,7 +1217,8 @@ func main() {
 					}
 					v.Set("ca", string(b))
 				}
-				s, err := brook.NewRelayOverBrook(c.String("from"), brook.LinkExtra(kind, c.String("server"), "", c.String("password"), v), c.String("to"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+				v.Set("password", c.String("password"))
+				s, err := brook.NewRelayOverBrook(c.String("from"), brook.Link(kind, c.String("server"), v), c.String("to"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
 				if err != nil {
 					return err
 				}
@@ -1361,7 +1362,8 @@ func main() {
 					}
 					v.Set("ca", string(b))
 				}
-				s, err := brook.NewRelayOverBrook(c.String("listen"), brook.LinkExtra(kind, c.String("server"), "", c.String("password"), v), c.String("dns"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+				v.Set("password", c.String("password"))
+				s, err := brook.NewRelayOverBrook(c.String("listen"), brook.Link(kind, c.String("server"), v), c.String("dns"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
 				if err != nil {
 					return err
 				}
@@ -1517,7 +1519,7 @@ func main() {
 					m.HandleFunc("/hasp", func(w http.ResponseWriter, r *http.Request) {
 						lock.Lock()
 						defer lock.Unlock()
-						_, err := os.Stat("/tmp/.brook.web.password")
+						_, err := os.Stat("/root/.brook.web.password")
 						if os.IsNotExist(err) {
 							w.Write([]byte("no"))
 							return
@@ -1527,12 +1529,12 @@ func main() {
 					m.HandleFunc("/setp", func(w http.ResponseWriter, r *http.Request) {
 						lock.Lock()
 						defer lock.Unlock()
-						_, err := os.Stat("/tmp/.brook.web.password")
+						_, err := os.Stat("/root/.brook.web.password")
 						if !os.IsNotExist(err) {
 							http.Error(w, "file exsits", 500)
 							return
 						}
-						err = ioutil.WriteFile("/tmp/.brook.web.password", []byte(r.FormValue("p")), 0600)
+						err = ioutil.WriteFile("/root/.brook.web.password", []byte(r.FormValue("p")), 0600)
 						if err != nil {
 							http.Error(w, err.Error(), 500)
 							return
@@ -1542,7 +1544,7 @@ func main() {
 					m.HandleFunc("/authp", func(w http.ResponseWriter, r *http.Request) {
 						lock.Lock()
 						defer lock.Unlock()
-						b, err := ioutil.ReadFile("/tmp/.brook.web.password")
+						b, err := ioutil.ReadFile("/root/.brook.web.password")
 						if err != nil {
 							http.Error(w, err.Error(), 500)
 							return
@@ -1621,7 +1623,7 @@ func main() {
 						w.Write([]byte("disconnected"))
 					})
 					m.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-						b, err := ioutil.ReadFile("/tmp/.brook.web.password")
+						b, err := ioutil.ReadFile("/root/.brook.web.password")
 						if err != nil {
 							http.Error(w, err.Error(), 500)
 							return
@@ -1722,7 +1724,8 @@ func main() {
 					}
 					v.Set("ca", string(b))
 				}
-				link := brook.LinkExtra(kind, c.String("server"), "", c.String("password"), v)
+				v.Set("password", c.String("password"))
+				link := brook.Link(kind, c.String("server"), v)
 				if c.String("link") != "" {
 					link = c.String("link")
 				}
@@ -1835,8 +1838,15 @@ func main() {
 					s = "quicserver"
 				}
 				v := url.Values{}
+				v.Set("password", c.String("password"))
+				if c.String("username") != "" {
+					v.Set("username", c.String("username"))
+				}
 				if c.String("name") != "" {
 					v.Set("name", c.String("name"))
+				}
+				if c.Bool("udpovertcp") {
+					v.Set("udpovertcp", "true")
 				}
 				if c.String("address") != "" {
 					v.Set("address", c.String("address"))
@@ -1847,9 +1857,6 @@ func main() {
 				if c.Bool("withoutBrookProtocol") {
 					v.Set("withoutBrookProtocol", "true")
 				}
-				if c.Bool("udpovertcp") {
-					v.Set("udpovertcp", "true")
-				}
 				if c.String("ca") != "" {
 					b, err := ioutil.ReadFile(c.String("ca"))
 					if err != nil {
@@ -1857,7 +1864,7 @@ func main() {
 					}
 					v.Set("ca", string(b))
 				}
-				fmt.Println(brook.LinkExtra(s, c.String("server"), c.String("username"), c.String("password"), v))
+				fmt.Println(brook.Link(s, c.String("server"), v))
 				return nil
 			},
 		},
@@ -1926,7 +1933,7 @@ func main() {
 				if h == "" {
 					return errors.New("socks5 server requires a clear IP for UDP, only port is not enough. You may use loopback IP or lan IP or other, we can not decide for you")
 				}
-				kind, _, _, _, _, err := brook.ParseLinkExtra(c.String("link"))
+				kind, _, _, err := brook.ParseLink(c.String("link"))
 				if err != nil {
 					return err
 				}
@@ -2125,7 +2132,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "limitUDP",
-					Usage: "The server MAY use this information to limit access to the UDP association",
+					Usage: "The server MAY use this information to limit access to the UDP association. This usually causes connection failures in a NAT environment, where most clients are.",
 				},
 				&cli.IntFlag{
 					Name:  "tcpTimeout",
