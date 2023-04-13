@@ -36,8 +36,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/miekg/dns"
+	utls "github.com/refraction-networking/utls"
 	"github.com/txthinking/brook"
 	"github.com/txthinking/brook/plugins/block"
+	"github.com/txthinking/brook/plugins/dialwithdns"
 	"github.com/txthinking/brook/plugins/dialwithip"
 	"github.com/txthinking/brook/plugins/logger"
 	"github.com/txthinking/brook/plugins/pprof"
@@ -77,6 +80,14 @@ func main() {
 		&cli.StringSliceFlag{
 			Name:  "tag",
 			Usage: "Tag can be used to the process, will be append into log, such as: 'key1:value1'",
+		},
+		&cli.StringFlag{
+			Name:  "dialWithDNS",
+			Usage: "When a domain name needs to be resolved, use the specified DNS. Such as 8.8.8.8:53 or https://dns.google/dns-query?address=8.8.8.8%3A443, the address is required. Note that for client-side commands, this does not affect the client passing the domain address to the server",
+		},
+		&cli.StringFlag{
+			Name:  "dialWithDNSPrefer",
+			Usage: "This is used with the dialWithDNS parameter. Prefer A record or AAAA record. Value is A or AAAA",
 		},
 		&cli.StringFlag{
 			Name:  "dialWithIP4",
@@ -157,6 +168,13 @@ func main() {
 				p.Close()
 				f()
 			}
+		}
+		if c.String("dialWithDNS") != "" {
+			p, err := dialwithdns.NewDialWithDNS(c.String("dialWithDNS"), c.String("dialWithDNSPrefer"))
+			if err != nil {
+				return err
+			}
+			p.TouchBrook()
 		}
 		if c.String("dialWithIP4") != "" || c.String("dialWithIP6") != "" {
 			p, err := dialwithip.NewDialWithIP(c.String("dialWithIP4"), c.String("dialWithIP6"))
@@ -1264,7 +1282,7 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "dnsForBypass",
-					Usage: "DNS server for resolving domains in bypass list",
+					Usage: "DNS server for resolving domains in bypass list. Such as 223.5.5.5:53 or https://dns.alidns.com/dns-query?address=223.5.5.5:443, the address is required",
 					Value: "223.5.5.5:53",
 				},
 				&cli.StringFlag{
@@ -1335,7 +1353,7 @@ func main() {
 					return errors.New("--blockDomainList must be with absolute path")
 				}
 				if c.String("blockDomainList") != "" || c.String("bypassDomainList") != "" || c.Bool("disableA") || c.Bool("disableAAAA") {
-					p, err := thedns.NewTheDNS(c.String("blockDomainList"), c.String("bypassDomainList"), c.String("dnsForBypass"), c.Bool("disableA"), c.Bool("disableAAAA"))
+					p, err := thedns.NewTheDNS(c.String("blockDomainList"), c.String("bypassDomainList"), c.String("dnsForBypass"), c.Bool("disableA"), c.Bool("disableAAAA"), "")
 					if err != nil {
 						return err
 					}
@@ -1415,7 +1433,7 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "dnsForBypass",
-					Usage: "DNS server for resolving domains in bypass list",
+					Usage: "DNS server for resolving domains in bypass list. Such as 223.5.5.5:53 or https://dns.alidns.com/dns-query?address=223.5.5.5:443, the address is required",
 					Value: "223.5.5.5:53",
 				},
 				&cli.StringFlag{
@@ -1713,7 +1731,7 @@ func main() {
 					return errors.New("--bypassCIDR6List must be with absolute path")
 				}
 				if c.String("blockDomainList") != "" || c.String("bypassDomainList") != "" || c.Bool("disableA") || c.Bool("disableAAAA") {
-					p, err := thedns.NewTheDNS(c.String("blockDomainList"), c.String("bypassDomainList"), c.String("dnsForBypass"), c.Bool("disableA"), c.Bool("disableAAAA"))
+					p, err := thedns.NewTheDNS(c.String("blockDomainList"), c.String("bypassDomainList"), c.String("dnsForBypass"), c.Bool("disableA"), c.Bool("disableAAAA"), "")
 					if err != nil {
 						return err
 					}
@@ -1760,6 +1778,16 @@ func main() {
 				link := brook.Link(kind, c.String("server"), v)
 				if c.String("link") != "" {
 					link = c.String("link")
+				}
+				_, _, v, err := brook.ParseLink(link)
+				if err != nil {
+					return err
+				}
+				if v.Get("tlsfingerprint") == "chrome" {
+					brook.ClientHelloID = utls.HelloChrome_Auto
+				}
+				if v.Get("tlsfingerprint") == "firefox" {
+					brook.ClientHelloID = utls.HelloFirefox_Auto
 				}
 				s, err := brook.NewTproxy(c.String("listen"), link, c.Int("tcpTimeout"), c.Int("udpTimeout"))
 				if err != nil {
@@ -1851,6 +1879,10 @@ func main() {
 					Name:  "ca",
 					Usage: "When server is brook wssserver or brook quicserver, specify ca for untrusted cert, such as /path/to/ca.pem",
 				},
+				&cli.StringFlag{
+					Name:  "tlsfingerprint",
+					Usage: "When server is brook wssserver, select tls fingerprint, value can be chrome or firefox",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				if c.String("server") == "" {
@@ -1888,6 +1920,9 @@ func main() {
 				}
 				if c.Bool("withoutBrookProtocol") {
 					v.Set("withoutBrookProtocol", "true")
+				}
+				if c.String("tlsfingerprint") != "" {
+					v.Set("tlsfingerprint", c.String("tlsfingerprint"))
 				}
 				if c.String("ca") != "" {
 					b, err := ioutil.ReadFile(c.String("ca"))
@@ -1953,12 +1988,18 @@ func main() {
 				if h == "" {
 					return errors.New("socks5 server requires a clear IP for UDP, only port is not enough. You may use loopback IP or lan IP or other, we can not decide for you")
 				}
-				kind, _, _, err := brook.ParseLink(c.String("link"))
+				kind, _, v, err := brook.ParseLink(c.String("link"))
 				if err != nil {
 					return err
 				}
 				if kind == "socks5" {
 					return errors.New("Looks like you want create socks5 from a socks5, you may want $ brook socks5tohttp?")
+				}
+				if v.Get("tlsfingerprint") == "chrome" {
+					brook.ClientHelloID = utls.HelloChrome_Auto
+				}
+				if v.Get("tlsfingerprint") == "firefox" {
+					brook.ClientHelloID = utls.HelloFirefox_Auto
 				}
 				s, err := brook.NewBrookLink(c.String("link"))
 				if err != nil {
@@ -2045,7 +2086,7 @@ func main() {
 		},
 		&cli.Command{
 			Name:  "dnsserver",
-			Usage: "Run as standalone dns server, both TCP and UDP",
+			Usage: "Run as standalone dns server",
 			BashComplete: func(c *cli.Context) {
 				l := c.Command.VisibleFlags()
 				for _, v := range l {
@@ -2060,7 +2101,7 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "dns",
-					Usage: "DNS server which forward to",
+					Usage: "DNS server which forward to. Such as 8.8.8.8:53 or https://dns.google/dns-query?address=8.8.8.8%3A443, the address is required",
 					Value: "8.8.8.8:53",
 				},
 				&cli.StringFlag{
@@ -2093,8 +2134,12 @@ func main() {
 				if c.String("blockDomainList") != "" && !strings.HasPrefix(c.String("blockDomainList"), "http://") && !strings.HasPrefix(c.String("blockDomainList"), "https://") && !filepath.IsAbs(c.String("blockDomainList")) {
 					return errors.New("--blockDomainList must be with absolute path")
 				}
-				if c.String("blockDomainList") != "" || c.Bool("disableA") || c.Bool("disableAAAA") {
-					p, err := thedns.NewTheDNS(c.String("blockDomainList"), "", "", c.Bool("disableA"), c.Bool("disableAAAA"))
+				var doh string
+				if strings.HasPrefix(c.String("dns"), "https://") {
+					doh = c.String("dns")
+				}
+				if c.String("blockDomainList") != "" || c.Bool("disableA") || c.Bool("disableAAAA") || doh != "" {
+					p, err := thedns.NewTheDNS(c.String("blockDomainList"), "", "", c.Bool("disableA"), c.Bool("disableAAAA"), doh)
 					if err != nil {
 						return err
 					}
@@ -2117,6 +2162,218 @@ func main() {
 			},
 		},
 		&cli.Command{
+			Name:  "dnsclient",
+			Usage: "Send a dns query",
+			BashComplete: func(c *cli.Context) {
+				l := c.Command.VisibleFlags()
+				for _, v := range l {
+					fmt.Println("--" + v.Names()[0])
+				}
+			},
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "dns",
+					Aliases: []string{"s"},
+					Usage:   "DNS server, such as 8.8.8.8:53",
+					Value:   "8.8.8.8:53",
+				},
+				&cli.StringFlag{
+					Name:    "domain",
+					Aliases: []string{"d"},
+					Usage:   "Domain",
+				},
+				&cli.StringFlag{
+					Name:    "type",
+					Aliases: []string{"t"},
+					Usage:   "Type, such as A",
+					Value:   "NS",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				t, ok := dns.StringToType[c.String("type")]
+				if !ok {
+					return errors.New("invalid type")
+				}
+				dc := &brook.DNSClient{Server: c.String("dns")}
+				m := &dns.Msg{}
+				m.SetQuestion(c.String("domain")+".", t)
+				m, err := dc.Exchange(m)
+				if err != nil {
+					return err
+				}
+				fmt.Println(m)
+				return nil
+			},
+		},
+		&cli.Command{
+			Name:  "dohserver",
+			Usage: "Run as standalone doh server",
+			BashComplete: func(c *cli.Context) {
+				l := c.Command.VisibleFlags()
+				for _, v := range l {
+					fmt.Println("--" + v.Names()[0])
+				}
+			},
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "listen",
+					Usage: "listen address, if you want to create a http server behind nico",
+				},
+				&cli.StringFlag{
+					Name:  "domainaddress",
+					Usage: "Such as: domain.com:443, if you want to create a https server. If you choose to automatically issue certificates, the domain must have been resolved to the server IP and 80 port also will be used",
+				},
+				&cli.StringFlag{
+					Name:  "cert",
+					Usage: "The cert file absolute path for the domain, such as /path/to/cert.pem. If cert or certkey is empty, a certificate will be issued automatically",
+				},
+				&cli.StringFlag{
+					Name:  "certkey",
+					Usage: "The cert key file absolute path for the domain, such as /path/to/certkey.pem. If cert or certkey is empty, a certificate will be issued automatically",
+				},
+				&cli.StringFlag{
+					Name:  "path",
+					Usage: "URL path",
+					Value: "/dns-query",
+				},
+				&cli.StringFlag{
+					Name:  "dns",
+					Usage: "DNS server which forward to. Such as 8.8.8.8:53 or https://dns.google/dns-query?address=8.8.8.8%3A443, the address is required",
+					Value: "8.8.8.8:53",
+				},
+				&cli.StringFlag{
+					Name:  "blockDomainList",
+					Usage: "One domain per line, suffix match mode. https://, http:// or local absolute file path. Like: https://txthinking.github.io/bypass/example_domain.txt",
+				},
+				&cli.BoolFlag{
+					Name:  "disableA",
+					Usage: "Disable A query",
+				},
+				&cli.BoolFlag{
+					Name:  "disableAAAA",
+					Usage: "Disable AAAA query",
+				},
+				&cli.IntFlag{
+					Name:  "tcpTimeout",
+					Value: 0,
+					Usage: "time (s)",
+				},
+				&cli.IntFlag{
+					Name:  "udpTimeout",
+					Value: 60,
+					Usage: "time (s)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				if c.String("listen") == "" && c.String("domainaddress") == "" {
+					return cli.ShowSubcommandHelp(c)
+				}
+				if c.String("cert") != "" && !filepath.IsAbs(c.String("cert")) {
+					return errors.New("--cert must be with absolute path")
+				}
+				if c.String("certkey") != "" && !filepath.IsAbs(c.String("certkey")) {
+					return errors.New("--certkey must be with absolute path")
+				}
+				if c.String("blockDomainList") != "" && !strings.HasPrefix(c.String("blockDomainList"), "http://") && !strings.HasPrefix(c.String("blockDomainList"), "https://") && !filepath.IsAbs(c.String("blockDomainList")) {
+					return errors.New("--blockDomainList must be with absolute path")
+				}
+				if c.String("blockDomainList") != "" || c.Bool("disableA") || c.Bool("disableAAAA") {
+					p, err := thedns.NewTheDNS(c.String("blockDomainList"), "", "", c.Bool("disableA"), c.Bool("disableAAAA"), "")
+					if err != nil {
+						return err
+					}
+					p.TouchBrook()
+				}
+				addr := ""
+				domain := ""
+				if c.String("domainaddress") != "" {
+					h, p, err := net.SplitHostPort(c.String("domainaddress"))
+					if err != nil {
+						return err
+					}
+					domain = h
+					addr = ":" + p
+				}
+				if c.String("listen") != "" {
+					addr = c.String("listen")
+				}
+				s, err := brook.NewDOHServer(addr, domain, c.String("path"), c.String("dns"), c.Int("tcpTimeout"), c.Int("udpTimeout"))
+				if err != nil {
+					return err
+				}
+				if c.String("cert") != "" {
+					b, err := ioutil.ReadFile(c.String("cert"))
+					if err != nil {
+						return err
+					}
+					s.Cert = b
+				}
+				if c.String("certkey") != "" {
+					b, err := ioutil.ReadFile(c.String("certkey"))
+					if err != nil {
+						return err
+					}
+					s.CertKey = b
+				}
+				g.Add(&runnergroup.Runner{
+					Start: func() error {
+						return s.ListenAndServe()
+					},
+					Stop: func() error {
+						return s.Shutdown()
+					},
+				})
+				return nil
+			},
+		},
+		&cli.Command{
+			Name:  "dohclient",
+			Usage: "Send a dns query",
+			BashComplete: func(c *cli.Context) {
+				l := c.Command.VisibleFlags()
+				for _, v := range l {
+					fmt.Println("--" + v.Names()[0])
+				}
+			},
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "doh",
+					Aliases: []string{"s"},
+					Usage:   "DOH server, the address is required",
+					Value:   "https://dns.google/dns-query?address=8.8.8.8%3A443",
+				},
+				&cli.StringFlag{
+					Name:    "domain",
+					Aliases: []string{"d"},
+					Usage:   "Domain",
+				},
+				&cli.StringFlag{
+					Name:    "type",
+					Aliases: []string{"t"},
+					Usage:   "Type, such as A",
+					Value:   "NS",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				t, ok := dns.StringToType[c.String("type")]
+				if !ok {
+					return errors.New("invalid type")
+				}
+				dc, err := brook.NewDOHClient(c.String("doh"))
+				if err != nil {
+					return err
+				}
+				m := &dns.Msg{}
+				m.SetQuestion(c.String("domain")+".", t)
+				m, err = dc.Exchange(m)
+				if err != nil {
+					return err
+				}
+				fmt.Println(m)
+				return nil
+			},
+		},
+		&cli.Command{
 			Name:  "dhcpserver",
 			Usage: "Run as standalone dhcp server. Note that you need to stop other dhcp servers, if there are.",
 			BashComplete: func(c *cli.Context) {
@@ -2126,6 +2383,10 @@ func main() {
 				}
 			},
 			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:  "interface",
+					Usage: "Select interface on multi interface device. Linux only",
+				},
 				&cli.StringFlag{
 					Name:  "serverip",
 					Usage: "DHCP server IP, the IP of the this machine, you shoud set a static IP to this machine before doing this, such as: 192.168.1.10",
@@ -2164,7 +2425,7 @@ func main() {
 				if c.String("cache") != "" && !filepath.IsAbs(c.String("cache")) {
 					return errors.New("--cache must be with absolute path")
 				}
-				s, err := brook.NewDHCPServer(c.String("serverip"), c.String("start"), c.String("netmask"), c.Int("count"), c.String("gateway"), c.StringSlice("dnsserver"), c.String("cache"))
+				s, err := brook.NewDHCPServer(c.String("interface"), c.String("serverip"), c.String("start"), c.String("netmask"), c.Int("count"), c.String("gateway"), c.StringSlice("dnsserver"), c.String("cache"))
 				if err != nil {
 					return err
 				}

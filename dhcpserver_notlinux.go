@@ -12,16 +12,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+// +build !linux
+
 package brook
 
 import (
-	"log"
-	"testing"
-
-	utls "github.com/refraction-networking/utls"
+	"net"
 )
 
-func TestTest(t *testing.T) {
-	var ci utls.ClientHelloID
-	log.Println(ci.Client)
+func DHCPListen(iface string) (net.PacketConn, error) {
+	return net.ListenPacket("udp4", ":67")
 }

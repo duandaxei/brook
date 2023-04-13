@@ -15,13 +15,14 @@
 package brook
 
 import (
-	"log"
-	"testing"
+	"net"
 
-	utls "github.com/refraction-networking/utls"
+	"github.com/krolaw/dhcp4/conn"
 )
 
-func TestTest(t *testing.T) {
-	var ci utls.ClientHelloID
-	log.Println(ci.Client)
+func DHCPListen(iface string) (net.PacketConn, error) {
+	if iface == "" {
+		return net.ListenPacket("udp4", ":67")
+	}
+	return conn.NewUDP4BoundListener(iface, ":67")
 }
